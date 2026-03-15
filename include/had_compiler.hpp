@@ -6,6 +6,7 @@
 class HADCompiler {
 public:
   bool lex(const std::string &);
+  bool generate_ast();
   HADCompiler() = default;
 
 private:

@@ -75,7 +75,12 @@ int32_t CompilerDriver::compile() {
   const std::string pre_process_file = file_name_ + ".i";
   std::string input_src = read_file_to_string(pre_process_file);
   HADCompiler compiler{};
+  // lexer
   if (!compiler.lex(input_src)) {
+    return 1;
+  }
+  // parser
+  if (!compiler.generate_ast()) {
     return 1;
   }
 

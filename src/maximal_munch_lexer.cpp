@@ -1,5 +1,4 @@
 #include "maximal_munch_lexer.hpp"
-#include "RAII_profiler.hpp"
 #include <cctype>
 #include <string>
 #include <unordered_map>
@@ -42,7 +41,6 @@ TOKEN_TYPE mm_lexer::identifier_to_keyword(std::string_view s) {
 }
 
 bool mm_lexer::tokenize() {
-  RAII_Profiler<std::chrono::microseconds> profiler{"tokenize"};
   int cur_char = 0;
   while (cur_char < input_source_.size()) {
     // whitespace

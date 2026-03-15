@@ -9,6 +9,7 @@ ${PROJECT_SOURCE_DIR}/src/main.cpp
 ${PROJECT_SOURCE_DIR}/src/compiler_driver.cpp
 ${PROJECT_SOURCE_DIR}/src/had_compiler.cpp
 ${PROJECT_SOURCE_DIR}/src/maximal_munch_lexer.cpp
+${PROJECT_SOURCE_DIR}/src/ast.cpp
 )
 
 target_include_directories(HyperAcceleratedDragon PRIVATE ${PROJECT_SOURCE_DIR}/include)
