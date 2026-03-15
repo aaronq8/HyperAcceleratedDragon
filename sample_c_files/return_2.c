@@ -1,4 +1,3 @@
-#include <stdlib.h>
-int main(){
+int main(void){
     return 2;
 }

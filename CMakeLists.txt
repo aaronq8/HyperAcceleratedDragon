@@ -7,6 +7,8 @@ find_package(Boost REQUIRED COMPONENTS program_options)
 add_executable(HyperAcceleratedDragon 
 ${PROJECT_SOURCE_DIR}/src/main.cpp
 ${PROJECT_SOURCE_DIR}/src/compiler_driver.cpp
+${PROJECT_SOURCE_DIR}/src/had_compiler.cpp
+${PROJECT_SOURCE_DIR}/src/maximal_munch_lexer.cpp
 )
 
 target_include_directories(HyperAcceleratedDragon PRIVATE ${PROJECT_SOURCE_DIR}/include)

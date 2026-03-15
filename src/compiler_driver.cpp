@@ -4,11 +4,22 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <had_compiler.hpp>
 #include <iostream>
+#include <maximal_munch_lexer.hpp>
 #include <vector>
 
 CompilerDriver::CompilerDriver(const std::string &input_file_path)
     : input_file_path_{input_file_path}, file_name_{get_file_name()} {}
+
+std::string CompilerDriver::read_file_to_string(const std::string &path) {
+  std::ifstream file(path);
+
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+
+  return buffer.str();
+}
 
 void CompilerDriver::cleanup(int32_t pp_code, int32_t cp_code, int32_t l_code) {
   namespace fs = std::filesystem;
@@ -35,10 +46,14 @@ int32_t CompilerDriver::run() {
   std::vector<int32_t> return_codes{1, 1, 1};
   for (int i = 0; i < steps.size(); i++) {
     return_codes[i] = steps[i]();
-    if (return_codes[i])
+    if (return_codes[i]) {
       // clean up current and all previous stages
       cleanup(return_codes[0], return_codes[1], return_codes[2]);
+      return 1;
+    }
   }
+  // clean up post success
+  cleanup(return_codes[0], return_codes[1], return_codes[2]);
   return 0;
 }
 
@@ -57,7 +72,15 @@ int32_t CompilerDriver::preprocess() {
 }
 
 int32_t CompilerDriver::compile() {
-  const std::string asm_code = R"(	.file	"return_2.c"
+  const std::string pre_process_file = file_name_ + ".i";
+  std::string input_src = read_file_to_string(pre_process_file);
+  HADCompiler compiler{};
+  if (!compiler.lex(input_src)) {
+    return 1;
+  }
+
+  const std::string asm_code =
+      R"(	.file	"return_2.c"
 	.text
 	.globl	main
 	.type	main, @function
@@ -74,7 +97,6 @@ main:
     std::cerr << "Failed to open file: " << asm_file_name << "\n";
     return 1;
   }
-
   out << asm_code;
   out.close();
 
