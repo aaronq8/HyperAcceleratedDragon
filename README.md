@@ -9,8 +9,8 @@ sudo apt install libboost-all-dev
 
 ## Completed Tasks
 1. GCC Driver
+2. Lexer
 
 ## TODO
-1. Lexer
-2. Parser
-3. Codegen
+1. Parser
+2. Codegen
