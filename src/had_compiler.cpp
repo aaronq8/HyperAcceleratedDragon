@@ -3,6 +3,7 @@
 #include "ast.hpp"
 #include "maximal_munch_lexer.hpp"
 #include <iostream>
+#include <x64_ast.hpp>
 
 bool HADCompiler::lex(const std::string &input_source) {
   RAII_Profiler<std::chrono::microseconds> profiler{"LEXER"};
@@ -27,6 +28,13 @@ bool HADCompiler::generate_ast() {
     return false;
   } else {
     ast_root->print(std::cout, 0);
+  }
+  x64_AST::x64_translater trans{};
+  auto x64_root = trans.parse_x64_prog_node(std::move(ast_root));
+  if (x64_root) {
+    x64_root->print(std::cout, 0);
+  } else {
+    std::cout << "ERROR during x64 assembly conversion...\n";
   }
   return true;
 }

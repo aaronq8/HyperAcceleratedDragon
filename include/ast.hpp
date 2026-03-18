@@ -1,3 +1,5 @@
+#pragma once
+
 #include "token.hpp"
 #include <deque>
 #include <memory>
@@ -28,7 +30,6 @@ class ast_token_node : public ast_node {
 public:
   ast_token_node(TOKEN_TYPE token_type) : token_type_{token_type} {};
 
-protected:
   const TOKEN_TYPE token_type_;
 };
 
@@ -43,7 +44,6 @@ public:
     os << "Constant(" << val_ << ")\n";
   }
 
-private:
   const int32_t val_;
 };
 
@@ -57,7 +57,6 @@ public:
     os << "Identifier(" << val_ << ")\n";
   }
 
-private:
   const std::string val_;
 };
 // *_node constructs can map to other constructs..therefore non-terminal symbols
@@ -72,7 +71,6 @@ public:
     const_node_->print(os, indent_lvl + 1);
   }
 
-private:
   std::unique_ptr<const_token_node> const_node_;
 };
 
@@ -86,7 +84,6 @@ public:
     exp_->print(os, indent_lvl + 1);
   }
 
-private:
   std::unique_ptr<exp_node> exp_;
 };
 
@@ -100,7 +97,6 @@ public:
     ret_->print(os, indent_lvl + 1);
   }
 
-private:
   std::unique_ptr<ret_node> ret_;
 };
 
@@ -118,7 +114,6 @@ public:
     stmt_->print(os, indent_lvl + 1);
   }
 
-private:
   std::unique_ptr<identifier_token_node> identifier_;
   std::unique_ptr<stmt_node> stmt_;
 };
@@ -137,7 +132,6 @@ public:
     os << "---------------------------\n";
   }
 
-private:
   std::unique_ptr<func_node> func_def_;
 };
 /*
