@@ -14,7 +14,10 @@ enum TOKEN_TYPE {
   BRACE_OPEN,
   BRACE_CLOSE,
   SEMICOLON,
-  ERROR
+  ERROR,
+  UNOP_COMPLEMENT,
+  UNOP_NEGATE,
+  UNOP_DECREMENT
 };
 
 struct token {
@@ -58,6 +61,15 @@ inline std::ostream &operator<<(std::ostream &os, TOKEN_TYPE type) {
     break;
   case ERROR:
     os << "ERROR";
+    break;
+  case UNOP_COMPLEMENT:
+    os << "UNOP_COMPLEMENT";
+    break;
+  case UNOP_NEGATE:
+    os << "UNOP_NEGATE";
+    break;
+  case UNOP_DECREMENT:
+    os << "UNOP_DECREMENT";
     break;
   default:
     os << "UNKNOWN_TOKEN";

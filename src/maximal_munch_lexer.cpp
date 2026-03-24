@@ -1,4 +1,5 @@
 #include "maximal_munch_lexer.hpp"
+#include "token.hpp"
 #include <cctype>
 #include <string>
 #include <unordered_map>
@@ -12,6 +13,7 @@ bool mm_lexer::is_space(const char &c) {
 }
 
 const std::vector<token> &mm_lexer::get_tokens() { return tokens_; }
+
 TOKEN_TYPE mm_lexer::get_single_char_token(const char &c) {
   switch (c) {
   case '(':
@@ -24,6 +26,10 @@ TOKEN_TYPE mm_lexer::get_single_char_token(const char &c) {
     return TOKEN_TYPE::BRACE_CLOSE;
   case ';':
     return TOKEN_TYPE::SEMICOLON;
+  case '~':
+    return TOKEN_TYPE::UNOP_COMPLEMENT;
+  case '-':
+    return TOKEN_TYPE::UNOP_NEGATE;
   default:
     return TOKEN_TYPE::ERROR;
   }
@@ -50,6 +56,16 @@ bool mm_lexer::tokenize() {
     }
     // 1-char tokens
     auto single_char_token = get_single_char_token(input_source_[cur_char]);
+    if (single_char_token == TOKEN_TYPE::UNOP_NEGATE) {
+      if (cur_char + 1 < input_source_.size() &&
+          get_single_char_token(input_source_[cur_char + 1]) ==
+              TOKEN_TYPE::UNOP_NEGATE) {
+        tokens_.emplace_back(std::string(2, input_source_[cur_char]),
+                             TOKEN_TYPE::UNOP_DECREMENT);
+        cur_char += 2;
+        continue;
+      }
+    }
     if (single_char_token != TOKEN_TYPE::ERROR) {
       tokens_.emplace_back(std::string(1, input_source_[cur_char]),
                            single_char_token);
