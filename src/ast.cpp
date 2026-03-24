@@ -1,9 +1,10 @@
 #include "ast.hpp"
 #include "token.hpp"
-#include <cstddef>
+
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 AST::ast_parser::ast_parser(const std::vector<token> tokens) {
@@ -20,6 +21,10 @@ template <>
 std::unique_ptr<AST::identifier_token_node>
 AST::ast_parser::parse_node<AST::identifier_token_node>() {
   // parse identifier token
+  if (tokens_.empty()) {
+    return nullptr;
+  }
+
   if (tokens_.front().token_type_ == TOKEN_TYPE::IDENTIFIER) {
     auto ident =
         std::make_unique<AST::identifier_token_node>(tokens_.front().lexeme_);
@@ -44,6 +49,9 @@ template <>
 std::unique_ptr<AST::const_token_node>
 AST::ast_parser::parse_node<AST::const_token_node>() {
   // parse constant token
+  if (tokens_.empty()) {
+    return nullptr;
+  }
   if (tokens_.front().token_type_ == TOKEN_TYPE::CONSTANT) {
     auto num = std::make_unique<AST::const_token_node>(
         std::stoi(tokens_.front().lexeme_));
@@ -53,38 +61,99 @@ AST::ast_parser::parse_node<AST::const_token_node>() {
   return nullptr;
 }
 
-//<exp> ::= <int>
+// <unop> ::= "-" | "~"
 template <>
-std::unique_ptr<AST::exp_node> AST::ast_parser::parse_node<AST::exp_node>() {
-  auto constant =
-      parse_required<AST::const_token_node>("invalid or missing constant");
-  if (!constant) {
+std::unique_ptr<AST::unary_op_node>
+AST::ast_parser::parse_node<AST::unary_op_node>() {
+  if (tokens_.empty()) {
     return nullptr;
   }
 
-  return std::make_unique<AST::exp_node>(std::move(constant));
+  if (tokens_.front().token_type_ == TOKEN_TYPE::UNOP_NEGATE) {
+    tokens_.pop_front();
+    return std::make_unique<AST::negate_token_node>();
+  }
+
+  if (tokens_.front().token_type_ == TOKEN_TYPE::UNOP_COMPLEMENT) {
+    tokens_.pop_front();
+    return std::make_unique<AST::complement_token_node>();
+  }
+
+  return nullptr;
 }
 
-//"return" <exp> ";"
+// <exp> ::= <int> | <unop> <exp> | "(" <exp> ")"
+template <>
+std::unique_ptr<AST::exp_node> AST::ast_parser::parse_node<AST::exp_node>() {
+  if (tokens_.empty()) {
+    return nullptr;
+  }
+
+  // <int>
+  if (expect_token(TOKEN_TYPE::CONSTANT)) {
+    return parse_node<AST::const_token_node>();
+  }
+
+  // <unop> <exp>
+  if (expect_token(TOKEN_TYPE::UNOP_NEGATE) ||
+      expect_token(TOKEN_TYPE::UNOP_COMPLEMENT)) {
+    auto op =
+        parse_required<AST::unary_op_node>("invalid or missing unary operator");
+    if (!op) {
+      return nullptr;
+    }
+    // recursive
+    auto inner_exp = parse_required<AST::exp_node>(
+        "invalid or missing expression after unary operator");
+    if (!inner_exp) {
+      return nullptr;
+    }
+
+    return std::make_unique<AST::unary_node>(std::move(op),
+                                             std::move(inner_exp));
+  }
+
+  // "(" <exp> ")"
+  if (expect_token(TOKEN_TYPE::PARANTHESIS_OPEN)) {
+    tokens_.pop_front();
+
+    auto inner_exp = parse_required<AST::exp_node>(
+        "invalid or missing parenthesized expression");
+    if (!inner_exp) {
+      return nullptr;
+    }
+
+    if (!consume(TOKEN_TYPE::PARANTHESIS_CLOSED,
+                 "missing ')' after expression")) {
+      return nullptr;
+    }
+
+    return inner_exp;
+  }
+
+  return nullptr;
+}
+
+// "return" <exp> ";"
 template <>
 std::unique_ptr<AST::ret_node> AST::ast_parser::parse_node<AST::ret_node>() {
   if (!consume(TOKEN_TYPE::KEYWORD_RETURN, "missing return keyword")) {
     return nullptr;
   }
 
-  auto exp = parse_required<AST::exp_node>("missing return keyword");
-  if (!exp)
+  auto exp = parse_required<AST::exp_node>("missing expression after return");
+  if (!exp) {
     return nullptr;
+  }
 
-  if (!consume(TOKEN_TYPE::SEMICOLON, "missing ;")) {
+  if (!consume(TOKEN_TYPE::SEMICOLON, "missing ';'")) {
     return nullptr;
   }
 
   return std::make_unique<AST::ret_node>(std::move(exp));
 }
 
-//<statement> ::= "return" <exp> ";"
-// statement -> return node
+// <statement> ::= "return" <exp> ";"
 template <>
 std::unique_ptr<AST::stmt_node> AST::ast_parser::parse_node<AST::stmt_node>() {
   auto ret =
@@ -93,22 +162,22 @@ std::unique_ptr<AST::stmt_node> AST::ast_parser::parse_node<AST::stmt_node>() {
     return nullptr;
   }
 
-  return std::make_unique<AST::stmt_node>(std::move(ret));
+  return ret;
 }
 
-//<function> ::= "int" <identifier> "(" "void" ")" "{" <statement> "}"
+// <function> ::= "int" <identifier> "(" "void" ")" "{" <statement> "}"
 template <>
 std::unique_ptr<AST::func_node> AST::ast_parser::parse_node<AST::func_node>() {
-  // func return type
   if (!consume(TOKEN_TYPE::KEYWORD_INT,
                "invalid or missing function return type")) {
     return nullptr;
   }
-  // func name
+
   auto identifier = parse_required<AST::identifier_token_node>(
       "invalid or missing function name");
-  if (!identifier)
+  if (!identifier) {
     return nullptr;
+  }
 
   // func related syntax
   if (!consume(TOKEN_TYPE::PARANTHESIS_OPEN, "no ( in function def") ||
@@ -117,20 +186,20 @@ std::unique_ptr<AST::func_node> AST::ast_parser::parse_node<AST::func_node>() {
       !consume(TOKEN_TYPE::BRACE_OPEN, "no { in function def")) {
     return nullptr;
   }
-  // func body
-  auto stmt = parse_required<AST::stmt_node>("no function body");
-  if (!stmt)
-    return nullptr;
 
-  if (!consume(TOKEN_TYPE::BRACE_CLOSE, "no } in function def")) {
+  auto stmt = parse_required<AST::stmt_node>("missing function body");
+  if (!stmt) {
     return nullptr;
   }
-  // removed all used tokens
+
+  if (!consume(TOKEN_TYPE::BRACE_CLOSE, "missing '}' in function definition")) {
+    return nullptr;
+  }
   return std::make_unique<AST::func_node>(std::move(identifier),
                                           std::move(stmt));
 }
 
-// program node -> function
+// <program> ::= <function>
 template <>
 std::unique_ptr<AST::program_node>
 AST::ast_parser::parse_node<AST::program_node>() {
@@ -146,7 +215,6 @@ AST::ast_parser::parse_node<AST::program_node>() {
 template <typename NodeT>
 std::unique_ptr<NodeT>
 AST::ast_parser::parse_required(std::string_view error_msg) {
-  // all specs of parse_node removes used tokens..
   auto node = parse_node<NodeT>();
   if (!node) {
     std::cout << error_msg << '\n';

@@ -10,7 +10,8 @@ ASDL for this AST....for now
 program = Program(function_definition)
 function_definition = Function(identifier name, statement body)
 statement = Return(exp)
-exp = Constant(int)
+exp = Constant(int) | Unary(unary_operator, exp)
+unary_operator = Complement | Negate
 */
 namespace AST {
 
@@ -33,8 +34,13 @@ public:
   const TOKEN_TYPE token_type_;
 };
 
+class exp_node : public ast_node {
+public:
+  virtual ~exp_node() = default;
+};
+
 // *_token_node constructs map to tokens...therefore terminal symbols
-class const_token_node : public ast_token_node {
+class const_token_node : public ast_token_node, public exp_node {
 public:
   const_token_node(const int32_t val)
       : val_{val}, ast_token_node{TOKEN_TYPE::CONSTANT} {}
@@ -59,22 +65,54 @@ public:
 
   const std::string val_;
 };
-// *_node constructs can map to other constructs..therefore non-terminal symbols
-class exp_node : public ast_node {
+
+class unary_op_node : public ast_node {
 public:
-  explicit exp_node(std::unique_ptr<const_token_node> const_node)
-      : const_node_{std::move(const_node)} {}
+  virtual ~unary_op_node() = default;
+};
+
+class stmt_node : public ast_node {
+public:
+  virtual ~stmt_node() = default;
+};
+
+class complement_token_node : public ast_token_node, public unary_op_node {
+public:
+  complement_token_node() : ast_token_node{TOKEN_TYPE::UNOP_COMPLEMENT} {}
+  void print(std::ostream &os, int indent_lvl) const override {
+    indent(os, indent_lvl);
+    os << "ComplementTokenNode\n";
+  }
+};
+
+class negate_token_node : public ast_token_node, public unary_op_node {
+public:
+  negate_token_node() : ast_token_node{TOKEN_TYPE::UNOP_NEGATE} {}
+  void print(std::ostream &os, int indent_lvl) const override {
+    indent(os, indent_lvl);
+    os << "NegateTokenNode\n";
+  }
+};
+
+class unary_node : public exp_node {
+public:
+  unary_node(std::unique_ptr<unary_op_node> op_node,
+             std::unique_ptr<exp_node> exp_node)
+      : op_node_{std::move(op_node)}, exp_node_{std::move(exp_node)} {}
 
   void print(std::ostream &os, int indent_lvl) const override {
     indent(os, indent_lvl);
-    os << "Exp\n";
-    const_node_->print(os, indent_lvl + 1);
+    os << "Unary\n";
+    op_node_->print(os, indent_lvl + 1);
+    exp_node_->print(os, indent_lvl + 1);
   }
 
-  std::unique_ptr<const_token_node> const_node_;
+private:
+  std::unique_ptr<unary_op_node> op_node_;
+  std::unique_ptr<exp_node> exp_node_;
 };
 
-class ret_node : public ast_node {
+class ret_node : public stmt_node {
 public:
   explicit ret_node(std::unique_ptr<exp_node> exp) : exp_{std::move(exp)} {}
 
@@ -85,19 +123,6 @@ public:
   }
 
   std::unique_ptr<exp_node> exp_;
-};
-
-class stmt_node : public ast_node {
-public:
-  explicit stmt_node(std::unique_ptr<ret_node> ret) : ret_{std::move(ret)} {}
-
-  void print(std::ostream &os, int indent_lvl) const override {
-    indent(os, indent_lvl);
-    os << "Statement\n";
-    ret_->print(os, indent_lvl + 1);
-  }
-
-  std::unique_ptr<ret_node> ret_;
 };
 
 class func_node : public ast_node {
@@ -138,7 +163,8 @@ public:
 <program> ::= <function>
 <function> ::= "int" <identifier> "(" "void" ")" "{" <statement> "}"
 <statement> ::= "return" <exp> ";"
-<exp> ::= <int>
+<exp> ::= <int> | <unop> <exp> | "(" <exp> ")"
+<unop> ::= "-" | "~"
 <identifier> ::= ? An identifier token ?
 <int> ::= ? A constant token ?
 */
